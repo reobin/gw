@@ -26,6 +26,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: source under dash
-        run: dash -c '. ./gw.sh; command -v gw'
+        run: dash -c '. ./gw.sh && command -v gw'
       - name: source under bash --posix
-        run: bash --posix -c '. ./gw.sh; command -v gw'
+        run: bash --posix -c '. ./gw.sh && command -v gw'
