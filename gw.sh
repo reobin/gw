@@ -30,10 +30,10 @@ Usage: gw <github PR URL>
 Lookup: current checkout, zoxide history, GW_ROOTS scan, then
   clone into GW_CLONE_ROOT.
 
-  GW_ROOTS="$HOME/GitHub $HOME/code $HOME/src $HOME/repos $HOME/workspace $HOME/projects"
-  GW_CLONE_ROOT=~/GitHub
+  GW_ROOTS="$HOME/dev $HOME/GitHub $HOME/code $HOME/src $HOME/repos $HOME/workspace $HOME/projects"
+  GW_CLONE_ROOT=$HOME/dev
 
-Needs: sh, git, gh (without gh: pr-N branch, no status).
+Needs: git, gh (without gh: pr-N branch, no status).
 Optional: git-wt, zoxide, ssh.
 
 See README.md for details.
@@ -176,7 +176,7 @@ _GW_PR_EOF
     :
   else
     _gw_found=""
-    _gw_root=${GW_CLONE_ROOT:-$HOME/GitHub}
+    _gw_root=${GW_CLONE_ROOT:-$HOME/dev}
     # "~" is a literal match.
     # shellcheck disable=SC2088
     case "$_gw_root" in
@@ -413,7 +413,7 @@ $_gw_fc_out
 _GW_FC_ZOX_EOF
   fi
 
-  _gw_fc_gwr=${GW_ROOTS:-"$HOME/GitHub $HOME/code $HOME/src $HOME/repos $HOME/workspace $HOME/projects"}
+  _gw_fc_gwr=${GW_ROOTS:-"$HOME/dev $HOME/GitHub $HOME/code $HOME/src $HOME/repos $HOME/workspace $HOME/projects"}
   _gw_fc_lf=$(printf '\nX')
   _gw_fc_lf=${_gw_fc_lf%X}
   _gw_fc_seen=$_gw_fc_lf
