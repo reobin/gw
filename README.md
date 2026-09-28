@@ -17,7 +17,7 @@ add fork remotes, so you cannot push back to them from that branch.
 
 ## Install
 
-Requires zsh. [`zoxide`](https://github.com/ajeetdsouza/zoxide) is optional
+Requires sh, git and gh. [`zoxide`](https://github.com/ajeetdsouza/zoxide) is optional
 and speeds up checkout discovery.
 
 **Oh My Zsh / antigen / zplug:** these load `gw.plugin.zsh` automatically.
@@ -28,10 +28,11 @@ git clone https://github.com/reobin/gw.git ~/.local/share/gw
 ln -s ~/.local/share/gw ~/.oh-my-zsh/custom/plugins/gw
 ```
 
-**Manual:** source it from your `.zshrc`.
+**Manual:** source `gw.sh` from your shell rc.
 
 ```sh
-source ~/.local/share/gw/gw.plugin.zsh
+. ~/.local/share/gw/gw.sh                  # sh, bash, dash
+emulate sh -c '. ~/.local/share/gw/gw.sh'  # zsh
 ```
 
 ## Configure
