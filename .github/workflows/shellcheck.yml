@@ -1,0 +1,31 @@
+name: shellcheck
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: shellcheck -s sh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        env:
+          SHELLCHECK_OPTS: -s sh
+        with:
+          ignore_names: gw.plugin.zsh
+
+  source-check:
+    name: source under dash and bash --posix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: source under dash
+        run: dash -c '. ./gw.sh && command -v gw'
+      - name: source under bash --posix
+        run: bash --posix -c '. ./gw.sh && command -v gw'
