@@ -8,7 +8,8 @@ gw https://github.com/<owner>/<repo>/pull/<id>
 
 `gw` resolves the PR's head branch, finds your local checkout of the repo by
 remote URL, and asks [`git-wt`](https://github.com/k1LoW/git-wt) to create
-the worktree when needed; gw then cds into it. Existing branches are updated
+the worktree when needed; gw then cds into it. When git-wt is not installed,
+gw falls back to plain `git worktree add` under `.wt`. Existing branches are updated
 to the PR's latest head, including after a force-push, unless they hold
 commits of your own. Merged or closed PRs print a notice and continue.
 

@@ -6,7 +6,8 @@
 # Must be sourced, not executed - only sourcing lets the final cd
 # affect the caller: . /path/to/gw.sh
 #
-# Requirements: sh, git, gh, git-wt. zoxide is optional.
+# Requirements: sh, git, gh. git-wt is optional (native git worktree
+# fallback); zoxide is optional.
 
 _gw_tolower() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
@@ -67,10 +68,6 @@ gw() {
 
   if ! command -v gh >/dev/null 2>&1; then
     printf 'gw: gh CLI is not installed\n' >&2
-    return 1
-  fi
-  if ! command -v git-wt >/dev/null 2>&1; then
-    printf 'gw: git-wt is not installed\n' >&2
     return 1
   fi
 
@@ -154,22 +151,75 @@ _GW_PR_EOF
   fi
 
   # Never cd before the worktree path is known; failures must leave the
-  # caller where they were. git-wt prints the path on its last stdout line.
-  _gw_wt_out=$(git -C "$_gw_checkout" wt --nocd "$_gw_wt_branch")
-  _gw_nl=$(printf '\nX')
-  _gw_nl=${_gw_nl%X}
-  case "$_gw_wt_out" in
-  *"$_gw_nl"*) _gw_wt_path=${_gw_wt_out##*"$_gw_nl"} ;;
-  *) _gw_wt_path=$_gw_wt_out ;;
-  esac
+  # caller where they were.
+  _gw_wt_path=""
+  if command -v git-wt >/dev/null 2>&1; then
+    # git-wt prints the path on its last stdout line.
+    _gw_wt_out=$(git -C "$_gw_checkout" wt --nocd "$_gw_wt_branch")
+    _gw_nl=$(printf '\nX')
+    _gw_nl=${_gw_nl%X}
+    case "$_gw_wt_out" in
+    *"$_gw_nl"*) _gw_wt_path=${_gw_wt_out##*"$_gw_nl"} ;;
+    *) _gw_wt_path=$_gw_wt_out ;;
+    esac
+  elif _gw_wt_path=$(_gw_branch_worktree "$_gw_checkout" "$_gw_wt_branch" 2>/dev/null); then
+    :
+  else
+    # Native fallback: plain git worktree under .wt.
+    _gw_wt_top=$(git -C "$_gw_checkout" rev-parse --show-toplevel 2>/dev/null) || {
+      printf 'gw: could not resolve worktree path for %s\n' "$_gw_wt_branch" >&2
+      return 1
+    }
+    _gw_wt_safe=$(_gw_sanitize_branch "$_gw_wt_branch") || {
+      printf 'gw: could not resolve worktree path for %s\n' "$_gw_wt_branch" >&2
+      return 1
+    }
+    _gw_wt_path=$_gw_wt_top/.wt/$_gw_wt_safe
+    if _gw_wt_err=$(git -C "$_gw_checkout" worktree add "$_gw_wt_path" "$_gw_wt_branch" 2>&1); then
+      _gw_wt_err=""
+    else
+      printf 'gw: could not create worktree at %s for %s: %s\n' "$_gw_wt_path" "$_gw_wt_branch" "$_gw_wt_err" >&2
+      return 1
+    fi
+  fi
   if [ -z "$_gw_wt_path" ] || [ ! -d "$_gw_wt_path" ]; then
     printf 'gw: could not resolve worktree path for %s\n' "$_gw_wt_branch" >&2
-    if [ -z "$_gw_wt_path" ]; then
+    if [ -z "$_gw_wt_path" ] && command -v git-wt >/dev/null 2>&1; then
       printf 'gw: expected k1LoW/git-wt (needs --nocd)\n' >&2
     fi
     return 1
   fi
   command cd "$_gw_wt_path" || return 1
+}
+
+_gw_sanitize_branch() {
+  # Print branch $1 sanitized for use as a worktree path. / is preserved
+  # as directory hierarchy; anything outside [A-Za-z0-9._-/] becomes _;
+  # empty, . and .. segments become _ so the result cannot escape the base.
+  _gw_sb_rest=$(printf '%s' "$1" | tr -c 'A-Za-z0-9._/-' '_')
+  _gw_sb_out=""
+  while :; do
+    case "$_gw_sb_rest" in
+    */*)
+      _gw_sb_seg=${_gw_sb_rest%%/*}
+      _gw_sb_rest=${_gw_sb_rest#*/}
+      ;;
+    *)
+      _gw_sb_seg=$_gw_sb_rest
+      _gw_sb_rest=""
+      ;;
+    esac
+    case "$_gw_sb_seg" in
+    "" | "." | "..") _gw_sb_seg="_" ;;
+    esac
+    if [ -z "$_gw_sb_out" ]; then
+      _gw_sb_out=$_gw_sb_seg
+    else
+      _gw_sb_out=$_gw_sb_out/$_gw_sb_seg
+    fi
+    [ -n "$_gw_sb_rest" ] || break
+  done
+  printf '%s\n' "$_gw_sb_out"
 }
 
 _gw_sync() {
