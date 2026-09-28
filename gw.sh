@@ -175,8 +175,15 @@ _GW_PR_EOF
       return 1
     }
     _gw_wt_path=$_gw_wt_top/.wt/$_gw_wt_safe
-    if _gw_wt_err=$(git -C "$_gw_checkout" worktree add "$_gw_wt_path" "$_gw_wt_branch" 2>&1); then
+    if _gw_wt_err=$(git -C "$_gw_checkout" worktree add -- "$_gw_wt_path" "$_gw_wt_branch" 2>&1); then
       _gw_wt_err=""
+      _gw_wt_info=$(git -C "$_gw_checkout" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || _gw_wt_info=""
+      if [ -n "$_gw_wt_info" ]; then
+        _gw_wt_exclude=$_gw_wt_info/info/exclude
+        if ! grep -qxF '.wt/' "$_gw_wt_exclude" 2>/dev/null; then
+          printf '\n.wt/\n' >>"$_gw_wt_exclude" 2>/dev/null || true
+        fi
+      fi
     else
       printf 'gw: could not create worktree at %s for %s: %s\n' "$_gw_wt_path" "$_gw_wt_branch" "$_gw_wt_err" >&2
       return 1
