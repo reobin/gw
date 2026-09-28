@@ -7,7 +7,7 @@
 # affect the caller: . /path/to/gw.sh
 #
 # Requirements:
-#   Hard: sh, git, gh (https://cli.github.com/).
+#   Hard: git, gh (https://cli.github.com/).
 #     Without gh gw runs in limited mode: pr-N branch, no status,
 #     no rename-following, private repos via git credential helper only.
 #   Assumed standard Unix (unchecked): find, rm.
@@ -422,6 +422,9 @@ _GW_FC_ZOX_EOF
   *) _gw_fc_had_f=0 ;;
   esac
   set -f
+  # zsh does not word-split unquoted vars by default; allow it here,
+  # function-local. No-op in sh (ZSH_VERSION unset, short-circuits).
+  [ -n "${ZSH_VERSION:-}" ] && setopt localoptions shwordsplit
   # Word-splitting GW_ROOTS on spaces is intentional.
   # shellcheck disable=SC2086
   # "~" is a literal match.

@@ -17,8 +17,6 @@ jobs:
         uses: ludeeus/action-shellcheck@master
         env:
           SHELLCHECK_OPTS: -s sh
-        with:
-          ignore_names: gw.plugin.zsh
 
   source-check:
     name: source under dash and bash --posix
