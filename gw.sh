@@ -274,7 +274,8 @@ _GW_PR_EOF
     fi
     return 1
   fi
-  command cd "$_gw_wt_path" || return 1
+  # Plain cd: `command cd` never moves the caller under zsh (rc still 0).
+  cd "$_gw_wt_path" || return 1
 }
 
 _gw_sanitize_branch() {
