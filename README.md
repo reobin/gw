@@ -18,7 +18,10 @@ add fork remotes, so you cannot push back to them from that branch.
 
 ## Install
 
-Requires sh, git and gh. [`zoxide`](https://github.com/ajeetdsouza/zoxide) is optional
+Requires sh, git. gh is optional (full fidelity with it; without it gw
+runs in limited mode: `pr-<id>` branch for all PRs, no closed/merged
+status, no rename-following, private-repo clone via git credential helper
+only). [`zoxide`](https://github.com/ajeetdsouza/zoxide) is optional
 and speeds up checkout discovery.
 
 **Oh My Zsh / antigen / zplug:** these load `gw.plugin.zsh` automatically.
