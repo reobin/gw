@@ -6,9 +6,17 @@
 # Must be sourced, not executed - only sourcing lets the final cd
 # affect the caller: . /path/to/gw.sh
 #
-# Requirements: sh, git. gh is optional (full fidelity with it;
-# without it gw runs in limited mode: pr-N branch, no status).
-# git-wt is optional (native git worktree fallback); zoxide is optional.
+# Requirements:
+#   Hard: sh, git, gh (https://cli.github.com/).
+#     Without gh gw runs in limited mode: pr-N branch, no status,
+#     no rename-following, private repos via git credential helper only.
+#   Assumed standard Unix (unchecked): find, rm.
+#     find needs -maxdepth and -prune (both BSD and GNU find have them).
+#   Soft (silent feature detection, never a fatal dep error):
+#     git-wt (native git worktree fallback otherwise; hooks/copy
+#     configs are git-wt-only extras), zoxide (checkout discovery
+#     speedup), ssh (only ssh -G to resolve Host aliases; a missing
+#     ssh means the host is taken literally).
 
 _gw_tolower() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
@@ -70,7 +78,7 @@ gw() {
   if command -v gh >/dev/null 2>&1; then
     _gw_no_gh=""
   else
-    printf 'gw: gh not found, limited mode (pr-%s branch, no status)\n' "$_gw_num" >&2
+    printf 'gw: gh not found, limited mode (pr-%s branch, no status); install gh: https://cli.github.com/\n' "$_gw_num" >&2
     _gw_no_gh=1
   fi
 
@@ -219,7 +227,7 @@ _GW_PR_EOF
   if [ -z "$_gw_wt_path" ] || [ ! -d "$_gw_wt_path" ]; then
     printf 'gw: could not resolve worktree path for %s\n' "$_gw_wt_branch" >&2
     if [ -z "$_gw_wt_path" ] && command -v git-wt >/dev/null 2>&1; then
-      printf 'gw: expected k1LoW/git-wt (needs --nocd)\n' >&2
+      printf 'gw: git-wt did not report a worktree path (needs --nocd support)\n' >&2
     fi
     return 1
   fi
