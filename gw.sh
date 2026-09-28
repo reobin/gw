@@ -6,8 +6,9 @@
 # Must be sourced, not executed - only sourcing lets the final cd
 # affect the caller: . /path/to/gw.sh
 #
-# Requirements: sh, git, gh. git-wt is optional (native git worktree
-# fallback); zoxide is optional.
+# Requirements: sh, git. gh is optional (full fidelity with it;
+# without it gw runs in limited mode: pr-N branch, no status).
+# git-wt is optional (native git worktree fallback); zoxide is optional.
 
 _gw_tolower() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
@@ -66,43 +67,58 @@ gw() {
     return 1
   fi
 
-  if ! command -v gh >/dev/null 2>&1; then
-    printf 'gw: gh CLI is not installed\n' >&2
-    return 1
+  if command -v gh >/dev/null 2>&1; then
+    _gw_no_gh=""
+  else
+    printf 'gw: gh not found, limited mode (pr-%s branch, no status)\n' "$_gw_num" >&2
+    _gw_no_gh=1
   fi
 
   _gw_base=$_gw_owner/$_gw_repo
-  _gw_out=$(gh pr view "$_gw_num" -R "$_gw_base" --json headRefName,isCrossRepository,state,url --jq '.headRefName, .isCrossRepository, .state, .url') || {
-    printf 'gw: could not load PR #%s in %s\n' "$_gw_num" "$_gw_base" >&2
-    return 1
-  }
-  {
-    IFS= read -r _gw_branch || _gw_branch=""
-    IFS= read -r _gw_is_cross || _gw_is_cross=""
-    IFS= read -r _gw_state || _gw_state=""
-    IFS= read -r _gw_pr_url || _gw_pr_url=""
-  } <<_GW_PR_EOF
+  if [ -n "$_gw_no_gh" ]; then
+    # Limited mode: owner/repo + N straight from the URL (no
+    # rename-following), every PR treated as a fork. Private repos work
+    # only via the git credential helper.
+    _gw_branch="pr-$_gw_num"
+    _gw_is_cross="true"
+    _gw_state=""
+    _gw_pr_url=""
+  else
+    _gw_out=$(gh pr view "$_gw_num" -R "$_gw_base" --json headRefName,isCrossRepository,state,url --jq '.headRefName, .isCrossRepository, .state, .url') || {
+      printf 'gw: could not load PR #%s in %s\n' "$_gw_num" "$_gw_base" >&2
+      return 1
+    }
+    {
+      IFS= read -r _gw_branch || _gw_branch=""
+      IFS= read -r _gw_is_cross || _gw_is_cross=""
+      IFS= read -r _gw_state || _gw_state=""
+      IFS= read -r _gw_pr_url || _gw_pr_url=""
+    } <<_GW_PR_EOF
 $_gw_out
 _GW_PR_EOF
-  if [ -z "$_gw_branch" ]; then
-    printf 'gw: could not load PR #%s in %s\n' "$_gw_num" "$_gw_base" >&2
-    return 1
-  fi
-  if [ -n "$_gw_state" ] && [ "$_gw_state" != "OPEN" ]; then
-    printf 'gw: PR #%s is %s\n' "$_gw_num" "$_gw_state" >&2
+    if [ -z "$_gw_branch" ]; then
+      printf 'gw: could not load PR #%s in %s\n' "$_gw_num" "$_gw_base" >&2
+      return 1
+    fi
+    if [ -n "$_gw_state" ] && [ "$_gw_state" != "OPEN" ]; then
+      printf 'gw: PR #%s is %s\n' "$_gw_num" "$_gw_state" >&2
+    fi
   fi
 
   # Canonical owner/repo from gh (follows renames) for discovery and clone.
-  case "$_gw_pr_url" in
-  *github.com/*/*/pull/*)
-    _gw_canon=${_gw_pr_url#*github.com/}
-    _gw_owner=${_gw_canon%%/*}
-    _gw_canon=${_gw_canon#*/}
-    _gw_repo=${_gw_canon%%/*}
-    _gw_repo=${_gw_repo%.git}
-    _gw_base=$_gw_owner/$_gw_repo
-    ;;
-  esac
+  # Skipped in limited mode: the URL values stay literal.
+  if [ -z "$_gw_no_gh" ]; then
+    case "$_gw_pr_url" in
+    *github.com/*/*/pull/*)
+      _gw_canon=${_gw_pr_url#*github.com/}
+      _gw_owner=${_gw_canon%%/*}
+      _gw_canon=${_gw_canon#*/}
+      _gw_repo=${_gw_canon%%/*}
+      _gw_repo=${_gw_repo%.git}
+      _gw_base=$_gw_owner/$_gw_repo
+      ;;
+    esac
+  fi
 
   _gw_want="github.com/$(_gw_tolower "$_gw_base")"
   _gw_found=""
@@ -121,7 +137,13 @@ _GW_PR_EOF
     for _gw_target in "$_gw_root/$_gw_repo" "$_gw_root/$_gw_owner/$_gw_repo"; do
       if [ ! -e "$_gw_target" ]; then
         printf 'gw: no local checkout of %s, cloning into %s\n' "$_gw_base" "$_gw_target"
-        if ! gh repo clone "$_gw_base" "$_gw_target"; then
+        if [ -n "$_gw_no_gh" ]; then
+          _gw_clone_url="https://github.com/$_gw_base.git"
+          if ! git clone "$_gw_clone_url" "$_gw_target"; then
+            rm -rf -- "$_gw_target"
+            return 1
+          fi
+        elif ! gh repo clone "$_gw_base" "$_gw_target"; then
           rm -rf -- "$_gw_target"
           return 1
         fi
@@ -144,7 +166,7 @@ _GW_PR_EOF
 
   _gw_wt_branch=$_gw_branch
   _gw_pr_ref="refs/gw/pr-$_gw_num"
-  if [ "$_gw_is_cross" = "true" ]; then
+  if [ -n "$_gw_no_gh" ] || [ "$_gw_is_cross" = "true" ]; then
     _gw_wt_branch="pr-$_gw_num"
     _gw_sync "$_gw_checkout" "$_gw_remote" "pull/$_gw_num/head" "$_gw_pr_ref" "$_gw_wt_branch" || return 1
   elif ! _gw_sync "$_gw_checkout" "$_gw_remote" "refs/heads/$_gw_branch" "refs/remotes/$_gw_remote/$_gw_branch" "$_gw_wt_branch"; then
