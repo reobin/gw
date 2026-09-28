@@ -139,5 +139,63 @@ _t_assert_eq "github.com/owner/repo" "$_t_got" "github_id https ignores ssh"
 _t_got=$(_gw_github_id "git@github.com:Owner/Repo.git")
 _t_assert_eq "github.com/owner/repo" "$_t_got" "github_id scp-like ignores ssh"
 
+_t_assert_contains() {
+  _t_ac_hay=$1
+  _t_ac_needle=$2
+  _t_ac_label=$3
+  case "$_t_ac_hay" in
+  *"$_t_ac_needle"*)
+    _t_pass=$((_t_pass + 1))
+    printf 'ok - %s\n' "$_t_ac_label"
+    ;;
+  *)
+    _t_fail=$((_t_fail + 1))
+    printf 'not ok - %s: missing <%s>\n' "$_t_ac_label" "$_t_ac_needle"
+    ;;
+  esac
+  unset _t_ac_hay _t_ac_needle _t_ac_label
+}
+
+# gw --help / -h print usage to stdout, status 0
+_t_got=$(gw --help 2>&1)
+_t_st=$?
+_t_assert_status 0 "$_t_st" "gw --help status"
+_t_assert_contains "$_t_got" "Usage:" "gw --help prints usage"
+_t_assert_contains "$_t_got" "GW_ROOTS" "gw --help documents GW_ROOTS"
+_t_assert_contains "$_t_got" "GW_CLONE_ROOT" "gw --help documents GW_CLONE_ROOT"
+_t_assert_contains "$_t_got" "git-wt" "gw --help lists soft deps"
+_t_assert_contains "$_t_got" "README" "gw --help points at README"
+
+_t_got=$(gw -h 2>&1)
+_t_st=$?
+_t_assert_status 0 "$_t_st" "gw -h status"
+_t_assert_contains "$_t_got" "Usage:" "gw -h prints usage"
+
+# bare gw, unknown flags, extra args, bad URLs: status 1 + full help
+_t_got=$(gw 2>&1)
+_t_st=$?
+_t_assert_status 1 "$_t_st" "bare gw status"
+_t_assert_contains "$_t_got" "try gw --help" "bare gw suggests --help"
+_t_assert_contains "$_t_got" "Usage:" "bare gw prints full help"
+
+_t_got=$(gw --bogus 2>&1)
+_t_st=$?
+_t_assert_status 1 "$_t_st" "gw unknown flag status"
+_t_assert_contains "$_t_got" "unknown option" "gw unknown flag names the flag"
+_t_assert_contains "$_t_got" "Usage:" "gw unknown flag prints full help"
+
+_t_got=$(gw a b 2>&1)
+_t_st=$?
+_t_assert_status 1 "$_t_st" "gw extra args status"
+_t_assert_contains "$_t_got" "try gw --help" "gw extra args suggests --help"
+_t_assert_contains "$_t_got" "Usage:" "gw extra args prints full help"
+
+_t_got=$(gw not-a-url 2>&1)
+_t_st=$?
+_t_assert_status 1 "$_t_st" "gw bad url status"
+_t_assert_contains "$_t_got" "not a GitHub PR URL" "gw bad url reason"
+_t_assert_contains "$_t_got" "try gw --help" "gw bad url suggests --help"
+_t_assert_contains "$_t_got" "Usage:" "gw bad url prints full help"
+
 printf '%d passed, %d failed\n' "$_t_pass" "$_t_fail"
 [ "$_t_fail" -eq 0 ]

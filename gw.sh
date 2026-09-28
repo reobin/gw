@@ -22,11 +22,46 @@ _gw_tolower() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
+_gw_help() {
+  cat <<'_GW_HELP_EOF'
+Usage: gw <github PR URL>
+       gw --help | gw -h
+
+Lookup: current checkout, zoxide history, GW_ROOTS scan, then
+  clone into GW_CLONE_ROOT.
+
+  GW_ROOTS="$HOME/GitHub $HOME/code $HOME/src $HOME/repos $HOME/workspace $HOME/projects"
+  GW_CLONE_ROOT=~/GitHub
+
+Needs: sh, git, gh (without gh: pr-N branch, no status).
+Optional: git-wt, zoxide, ssh.
+
+See README.md for details.
+_GW_HELP_EOF
+}
+
 gw() {
   case $# in
+  0)
+    printf 'gw: no arguments; try gw --help\n' >&2
+    _gw_help >&2
+    return 1
+    ;;
   1) ;;
   *)
-    printf 'Usage: gw <github PR URL>\n' >&2
+    printf 'gw: expected one argument; try gw --help\n' >&2
+    _gw_help >&2
+    return 1
+    ;;
+  esac
+  case $1 in
+  -h | --help)
+    _gw_help
+    return 0
+    ;;
+  -*)
+    printf 'gw: unknown option: %s; try gw --help\n' "$1" >&2
+    _gw_help >&2
     return 1
     ;;
   esac
@@ -36,7 +71,8 @@ gw() {
   case "$_gw_url_lc" in
   *github.com/*/*/pull/*) ;;
   *)
-    printf 'gw: not a GitHub PR URL: %s\n' "$_gw_url" >&2
+    printf 'gw: not a GitHub PR URL: %s; try gw --help\n' "$_gw_url" >&2
+    _gw_help >&2
     return 1
     ;;
   esac
@@ -46,7 +82,8 @@ gw() {
   case "$_gw_rest" in
   */*) ;;
   *)
-    printf 'gw: not a GitHub PR URL: %s\n' "$_gw_url" >&2
+    printf 'gw: not a GitHub PR URL: %s; try gw --help\n' "$_gw_url" >&2
+    _gw_help >&2
     return 1
     ;;
   esac
@@ -55,7 +92,8 @@ gw() {
   case "$_gw_rest" in
   pull/[0-9]*) ;;
   *)
-    printf 'gw: not a GitHub PR URL: %s\n' "$_gw_url" >&2
+    printf 'gw: not a GitHub PR URL: %s; try gw --help\n' "$_gw_url" >&2
+    _gw_help >&2
     return 1
     ;;
   esac
@@ -65,13 +103,15 @@ gw() {
   _gw_num=${_gw_num%%\#*}
   case "$_gw_num" in
   '' | *[!0-9]*)
-    printf 'gw: not a GitHub PR URL: %s\n' "$_gw_url" >&2
+    printf 'gw: not a GitHub PR URL: %s; try gw --help\n' "$_gw_url" >&2
+    _gw_help >&2
     return 1
     ;;
   esac
   _gw_repo=${_gw_repo%.git}
   if [ -z "$_gw_owner" ] || [ -z "$_gw_repo" ]; then
-    printf 'gw: not a GitHub PR URL: %s\n' "$_gw_url" >&2
+    printf 'gw: not a GitHub PR URL: %s; try gw --help\n' "$_gw_url" >&2
+    _gw_help >&2
     return 1
   fi
 
@@ -92,6 +132,7 @@ gw() {
     _gw_state=""
     _gw_pr_url=""
   else
+    printf 'gw: loading PR #%s in %s\n' "$_gw_num" "$_gw_base" >&2
     _gw_out=$(gh pr view "$_gw_num" -R "$_gw_base" --json headRefName,isCrossRepository,state,url --jq '.headRefName, .isCrossRepository, .state, .url') || {
       printf 'gw: could not load PR #%s in %s\n' "$_gw_num" "$_gw_base" >&2
       return 1
@@ -130,6 +171,7 @@ _GW_PR_EOF
 
   _gw_want="github.com/$(_gw_tolower "$_gw_base")"
   _gw_found=""
+  printf 'gw: finding checkout of %s\n' "$_gw_base" >&2
   if _gw_found=$(_gw_find_checkout "$_gw_want"); then
     :
   else
@@ -144,7 +186,7 @@ _GW_PR_EOF
     _gw_tab=$(printf '\t')
     for _gw_target in "$_gw_root/$_gw_repo" "$_gw_root/$_gw_owner/$_gw_repo"; do
       if [ ! -e "$_gw_target" ]; then
-        printf 'gw: no local checkout of %s, cloning into %s\n' "$_gw_base" "$_gw_target"
+        printf 'gw: no local checkout of %s, cloning into %s\n' "$_gw_base" "$_gw_target" >&2
         if [ -n "$_gw_no_gh" ]; then
           _gw_clone_url="https://github.com/$_gw_base.git"
           if ! git clone "$_gw_clone_url" "$_gw_target"; then
@@ -185,6 +227,7 @@ _GW_PR_EOF
   # Never cd before the worktree path is known; failures must leave the
   # caller where they were.
   _gw_wt_path=""
+  printf 'gw: preparing worktree for %s\n' "$_gw_wt_branch" >&2
   if command -v git-wt >/dev/null 2>&1; then
     # git-wt prints the path on its last stdout line.
     _gw_wt_out=$(git -C "$_gw_checkout" wt --nocd "$_gw_wt_branch")
@@ -273,6 +316,7 @@ _gw_sync() {
   _gw_s_ref=$4
   _gw_s_lb=$5
   _gw_s_old=$(git -C "$_gw_s_dir" rev-parse --verify --quiet "$_gw_s_ref" 2>/dev/null) || _gw_s_old=""
+  printf 'gw: fetching %s\n' "$_gw_s_lb" >&2
   git -C "$_gw_s_dir" fetch "$_gw_s_remote" "+${_gw_s_src}:${_gw_s_ref}" || return 1
   _gw_s_new=$(git -C "$_gw_s_dir" rev-parse --verify --quiet "$_gw_s_ref") || return 1
 
