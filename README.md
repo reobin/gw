@@ -18,11 +18,20 @@ add fork remotes, so you cannot push back to them from that branch.
 
 ## Install
 
-Requires sh, git. gh is optional (full fidelity with it; without it gw
-runs in limited mode: `pr-<id>` branch for all PRs, no closed/merged
-status, no rename-following, private-repo clone via git credential helper
-only). [`zoxide`](https://github.com/ajeetdsouza/zoxide) is optional
-and speeds up checkout discovery.
+Hard: sh, git, gh ([install gh](https://cli.github.com/)). Without
+gh, gw runs in limited mode: `pr-<id>` branch for all PRs, no
+closed/merged status, no rename-following, private-repo clone via git
+credential helper only.
+
+Assumed standard Unix (not checked): find (needs `-maxdepth` and
+`-prune`, present in both BSD and GNU find), rm.
+
+Soft (gw works without them, degrading silently): [`git-wt`](https://github.com/k1LoW/git-wt)
+(native `git worktree add` under `.wt` otherwise; wt hooks/copy
+configs are git-wt-only extras), [`zoxide`](https://github.com/ajeetdsouza/zoxide)
+(speeds up checkout discovery), ssh (only `ssh -G` to resolve Host
+aliases for non-github.com ssh-like remotes; a missing ssh means the
+host is taken literally).
 
 **Oh My Zsh / antigen / zplug:** these load `gw.plugin.zsh` automatically.
 
