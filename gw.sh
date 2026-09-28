@@ -114,6 +114,8 @@ _GW_PR_EOF
   else
     _gw_found=""
     _gw_root=${GW_CLONE_ROOT:-$HOME/GitHub}
+    # "~" is a literal match.
+    # shellcheck disable=SC2088
     case "$_gw_root" in
     "~") _gw_root=$HOME ;;
     "~/"*) _gw_root=$HOME/${_gw_root#\~/} ;;
@@ -140,8 +142,8 @@ _GW_PR_EOF
     fi
   fi
   _gw_tab=$(printf '\t')
-  _gw_checkout=${_gw_found%%${_gw_tab}*}
-  _gw_remote=${_gw_found#*${_gw_tab}}
+  _gw_checkout=${_gw_found%%"${_gw_tab}"*}
+  _gw_remote=${_gw_found#*"${_gw_tab}"}
 
   _gw_wt_branch=$_gw_branch
   _gw_pr_ref="refs/gw/pr-$_gw_num"
@@ -287,6 +289,8 @@ _GW_FC_ZOX_EOF
   set -f
   # Word-splitting GW_ROOTS on spaces is intentional.
   # shellcheck disable=SC2086
+  # "~" is a literal match.
+  # shellcheck disable=SC2088
   for _gw_fc_root in $_gw_fc_gwr; do
     case "$_gw_fc_root" in
     "~") _gw_fc_root=$HOME ;;
